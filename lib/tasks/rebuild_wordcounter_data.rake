@@ -11,8 +11,8 @@ task "wordcounter:count_post_words" => :environment do
     if ((i % 100) == 0)
       puts "Processing topic #{i+1} of #{topic_cnt}"
     end
+    i = i + 1
     t.posts.each do |p|
-      i = i+1
       ::WordCounter.process_post(p)
     end
   end
