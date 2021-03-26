@@ -91,6 +91,16 @@ task "wordcounter:create_badges" => :environment do
                 FROM users u
                 LEFT JOIN user_custom_fields ucf ON ucf.user_id = u.id
                 WHERE ucf.name = 'word_count'
+                AND u.id NOT IN (
+                    SELECT u.id AS user_id
+                    FROM posts p
+                    LEFT JOIN post_custom_fields ucf ON ucf.post_id = p.id
+                    LEFT JOIN users u ON u.id = p.user_id
+                    WHERE ucf.name = 'word_count'
+                      AND p.created_at > NOW() - INTERVAL '1 YEAR'
+                    GROUP BY u.id
+                    HAVING SUM(ucf.value::integer) >= 10000
+                )
                 GROUP BY u.id
                 HAVING SUM(ucf.value::integer) BETWEEN #{cfg[:lowerbound]} AND  #{cfg[:upperbound]}
             }
