@@ -1,103 +1,45 @@
-This plugin counts the words in a post and it also shows badges in the 'Contributor' group next to the name of the poster.
+# Discourse Word Counter
 
-The `discourse word counter enabled` site setting controls counting and the display of contribution badges. It defaults to enabled for existing installations. Posts created or edited while the plugin is disabled may need a recount after it is re-enabled. The setting does not remove existing counts or badges, or disable automatic badge queries.
+This plugin counts words in regular-topic posts and displays badges from the
+`Contribution` badge group next to authors' names. Quoted content is excluded.
 
-You could have the following badges in this badge group
+The `discourse word counter enabled` site setting controls counting and the
+display of contribution badges. It defaults to enabled for existing installations.
+Posts created or edited while the plugin is disabled may need a recount after it
+is re-enabled. The setting does not remove existing counts or badges, or disable
+automatic badge queries.
 
-### contributor
+## Contribution badges
 
-```
-    SELECT u.id AS user_id, NOW() as granted_at
-    FROM users u
-    LEFT JOIN user_custom_fields ucf ON ucf.user_id = u.id
-    WHERE ucf.name = 'word_count'
-    AND u.id NOT IN (
-        SELECT u.id AS user_id
-        FROM posts p
-        LEFT JOIN post_custom_fields ucf ON ucf.post_id = p.id
-        LEFT JOIN users u ON u.id = p.user_id
-        WHERE ucf.name = 'word_count'
-            AND p.created_at > NOW() - INTERVAL '1 YEAR'
-        GROUP BY u.id
-        HAVING SUM(ucf.value::integer) >= 10000
-    )
-    GROUP BY u.id
-    HAVING SUM(ucf.value::integer) BETWEEN 251 AND  1000
-```
+The `wordcounter:create_badges` task creates or updates these badges:
 
-### patron
+| Badge | Words | Period |
+| --- | --- | --- |
+| Contributor | 251–1,000 | Total |
+| Patron | 1,001–2,500 | Total |
+| Sr. Member | 2,501–10,000 | Total |
+| Influencer | 10,000–9,999,999,999 | Total |
+| Legend | 10,000–9,999,999,999 | Last year |
 
-```
-    SELECT u.id AS user_id, NOW() as granted_at
-    FROM users u
-    LEFT JOIN user_custom_fields ucf ON ucf.user_id = u.id
-    WHERE ucf.name = 'word_count'
-    AND u.id NOT IN (
-        SELECT u.id AS user_id
-        FROM posts p
-        LEFT JOIN post_custom_fields ucf ON ucf.post_id = p.id
-        LEFT JOIN users u ON u.id = p.user_id
-        WHERE ucf.name = 'word_count'
-            AND p.created_at > NOW() - INTERVAL '1 YEAR'
-        GROUP BY u.id
-        HAVING SUM(ucf.value::integer) >= 10000
-    )
-    GROUP BY u.id
-    HAVING SUM(ucf.value::integer) BETWEEN 1001 AND  2500
-```
-            
-### sr member
+Users with at least 10,000 words in the last year are excluded from the total
+badges. The Sr. Member and Influencer ranges overlap at exactly 10,000 words.
 
-```
-    SELECT u.id AS user_id, NOW() as granted_at
-    FROM users u
-    LEFT JOIN user_custom_fields ucf ON ucf.user_id = u.id
-    WHERE ucf.name = 'word_count'
-    AND u.id NOT IN (
-        SELECT u.id AS user_id
-        FROM posts p
-        LEFT JOIN post_custom_fields ucf ON ucf.post_id = p.id
-        LEFT JOIN users u ON u.id = p.user_id
-        WHERE ucf.name = 'word_count'
-            AND p.created_at > NOW() - INTERVAL '1 YEAR'
-        GROUP BY u.id
-        HAVING SUM(ucf.value::integer) >= 10000
-    )
-    GROUP BY u.id
-    HAVING SUM(ucf.value::integer) BETWEEN 2501 AND  10000
+## Updating badges on production
+
+Deploy the updated plugin first. For a standard Docker installation, enter the
+Discourse container from `/var/discourse` on the host, then run the task:
+
+```sh
+./launcher enter app
+cd /var/www/discourse
+RAILS_ENV=production bundle exec rake wordcounter:create_badges
 ```
 
-### influencer
-
-```
-    SELECT u.id AS user_id, NOW() as granted_at
-    FROM users u
-    LEFT JOIN user_custom_fields ucf ON ucf.user_id = u.id
-    WHERE ucf.name = 'word_count'
-    AND u.id NOT IN (
-        SELECT u.id AS user_id
-        FROM posts p
-        LEFT JOIN post_custom_fields ucf ON ucf.post_id = p.id
-        LEFT JOIN users u ON u.id = p.user_id
-        WHERE ucf.name = 'word_count'
-            AND p.created_at > NOW() - INTERVAL '1 YEAR'
-        GROUP BY u.id
-        HAVING SUM(ucf.value::integer) >= 10000
-    )
-    GROUP BY u.id
-    HAVING SUM(ucf.value::integer) BETWEEN 10000 AND  9999999999
-```
-            
-### legend
-
-```
-    SELECT u.id AS user_id, MAX(p.created_at) as granted_at
-    FROM posts p
-    LEFT JOIN post_custom_fields ucf ON ucf.post_id = p.id
-    LEFT JOIN users u ON u.id = p.user_id
-    WHERE ucf.name = 'word_count'
-    AND p.created_at > NOW() - INTERVAL '1 YEAR'
-    GROUP BY u.id
-    HAVING SUM(ucf.value::integer) BETWEEN 10000 AND  9999999999
-```
-            
+The task updates badges by name, preserves existing badge images, and restores
+their configured type, grouping, query, trigger, and automatic revocation settings.
+It also queues backfills for **all enabled badges** when badges are enabled.
+Sidekiq processes those jobs asynchronously; grants and automatic revocations
+may therefore take some time. The task does not recount existing posts. To
+rebuild counts separately, run `RAILS_ENV=production bundle exec rake
+wordcounter:count_post_words`; this removes the existing counts before rebuilding
+them and can take a while on a large site.
