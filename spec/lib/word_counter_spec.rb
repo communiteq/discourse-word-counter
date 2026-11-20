@@ -51,4 +51,18 @@ RSpec.describe DiscourseWordCounter::WordCounter do
       expect(user.reload.custom_fields[DiscourseWordCounter::WORD_COUNT_FIELD]).to be_nil
     end
   end
+
+  describe "post processing event" do
+    it "only counts posts when the plugin is enabled" do
+      SiteSetting.discourse_word_counter_enabled = false
+      described_class.expects(:process_post).never
+      DiscourseEvent.trigger(:before_post_process_cooked, Nokogiri::HTML.fragment(post.cooked), post)
+    end
+
+    it "counts posts when the plugin is enabled" do
+      SiteSetting.discourse_word_counter_enabled = true
+      described_class.expects(:process_post).with(post).once
+      DiscourseEvent.trigger(:before_post_process_cooked, Nokogiri::HTML.fragment(post.cooked), post)
+    end
+  end
 end

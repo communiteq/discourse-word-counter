@@ -1,0 +1,3 @@
+en:
+  site_settings:
+    discourse_word_counter_enabled: "Enable word counting and contribution badges on posts."

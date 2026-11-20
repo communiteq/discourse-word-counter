@@ -1,5 +1,7 @@
 This plugin counts the words in a post and it also shows badges in the 'Contributor' group next to the name of the poster.
 
+The `discourse word counter enabled` site setting controls counting and the display of contribution badges. It defaults to enabled for existing installations. Posts created or edited while the plugin is disabled may need a recount after it is re-enabled. The setting does not remove existing counts or badges, or disable automatic badge queries.
+
 You could have the following badges in this badge group
 
 ### contributor

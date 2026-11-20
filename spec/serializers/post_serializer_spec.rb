@@ -30,4 +30,13 @@ RSpec.describe PostSerializer do
       contribution_badge.id,
     )
   end
+
+  it "omits plugin fields when disabled" do
+    SiteSetting.discourse_word_counter_enabled = false
+    json = described_class.new(post, scope: Guardian.new, root: false).as_json
+
+    expect(json).not_to have_key(:word_count)
+    expect(json).not_to have_key(:user_word_count)
+    expect(json).not_to have_key(:word_counter_badges)
+  end
 end

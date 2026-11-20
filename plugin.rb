@@ -8,6 +8,8 @@
 
 require_relative "lib/word_counter"
 
+enabled_site_setting :discourse_word_counter_enabled
+
 after_initialize do
   register_post_custom_field_type(DiscourseWordCounter::WORD_COUNT_FIELD, :integer)
   register_user_custom_field_type(DiscourseWordCounter::WORD_COUNT_FIELD, :integer)
