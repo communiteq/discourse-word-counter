@@ -2,7 +2,7 @@
 
 # name: discourse-word-counter
 # about: Discourse Word Counter plugin
-# version: 4.0
+# version: 2026.7
 # authors: richard@communiteq.com
 # url: https://www.communiteq.com/
 
