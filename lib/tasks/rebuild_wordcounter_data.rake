@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "tempfile"
+
 desc "Count words for all posts"
 task "wordcounter:count_post_words" => :environment do
   puts "Removing all existing counter fields"
@@ -69,13 +71,29 @@ task "wordcounter:create_badges" => :environment do
 
   badge_configs.each do |config|
     badge = Badge.find_or_initialize_by(name: config[:name])
+    if badge.image_upload_id.blank?
+      filename = "Discourse-Icons-#{config[:image]}.svg"
+      image_path = File.expand_path("../../public/images/#{filename}", __dir__)
+      Tempfile.create(%w[word-counter-badge- .svg]) do |file|
+        IO.copy_stream(image_path, file)
+        file.flush
+        file.rewind
+        upload =
+          UploadCreator.new(file, filename, type: "badge_image").create_for(
+            Discourse.system_user.id,
+          )
+        if upload.errors.any? || upload.url.blank?
+          raise "Could not upload #{filename}: #{upload.errors.full_messages.join(", ")}"
+        end
+        badge.image_upload = upload
+      end
+    end
     badge.assign_attributes(
       badge_type_id: BadgeType::Gold,
       allow_title: true,
       auto_revoke: true,
       badge_grouping_id: badge_grouping.id,
       trigger: Badge::Trigger::None,
-      image: "/plugins/discourse-word-counter/images/Discourse-Icons-#{config[:image]}.svg",
       query:
         if config[:period] == :last_year
           <<~SQL
