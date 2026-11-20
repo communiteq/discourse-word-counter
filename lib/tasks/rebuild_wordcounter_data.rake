@@ -99,8 +99,8 @@ task "wordcounter:create_badges" => :environment do
           <<~SQL
             SELECT u.id AS user_id, MAX(p.created_at) AS granted_at
             FROM posts p
-            LEFT JOIN post_custom_fields ucf ON ucf.post_id = p.id
-            LEFT JOIN users u ON u.id = p.user_id
+            JOIN post_custom_fields ucf ON ucf.post_id = p.id
+            JOIN users u ON u.id = p.user_id
             WHERE ucf.name = '#{DiscourseWordCounter::WORD_COUNT_FIELD}'
               AND p.created_at > NOW() - INTERVAL '1 YEAR'
             GROUP BY u.id
@@ -110,16 +110,15 @@ task "wordcounter:create_badges" => :environment do
           <<~SQL
             SELECT u.id AS user_id, NOW() AS granted_at
             FROM users u
-            LEFT JOIN user_custom_fields ucf ON ucf.user_id = u.id
+            JOIN user_custom_fields ucf ON ucf.user_id = u.id
             WHERE ucf.name = '#{DiscourseWordCounter::WORD_COUNT_FIELD}'
-              AND u.id NOT IN (
-                SELECT u.id AS user_id
+              AND NOT EXISTS (
+                SELECT 1
                 FROM posts p
-                LEFT JOIN post_custom_fields pcf ON pcf.post_id = p.id
-                LEFT JOIN users u ON u.id = p.user_id
-                WHERE pcf.name = '#{DiscourseWordCounter::WORD_COUNT_FIELD}'
+                JOIN post_custom_fields pcf ON pcf.post_id = p.id
+                WHERE p.user_id = u.id
+                  AND pcf.name = '#{DiscourseWordCounter::WORD_COUNT_FIELD}'
                   AND p.created_at > NOW() - INTERVAL '1 YEAR'
-                GROUP BY u.id
                 HAVING SUM(pcf.value::integer) >= 10000
               )
             GROUP BY u.id
